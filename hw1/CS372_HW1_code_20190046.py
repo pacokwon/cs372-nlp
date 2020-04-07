@@ -8,27 +8,17 @@ def find_synonyms(word):
     return all lemmas of synsets of the given word
 
     params:
-        word - string word
+        word - word string
+
     """
+    # note that only words that are one of noun, adj, satellite adj are being included
     syns = [syn for syn in wn.synsets(word) if syn.pos() in "vas"]
+
+    # scan all words in its hypernym paths as well
     paths = [path for syn in syns for path in syn.hypernym_paths()]
     lemmas = [lemma for path in paths for syn in path for lemma in syn.lemma_names()]
 
     return lemmas
-
-
-def highest_sim(word1, word2):
-    ss1 = wn.synsets(word1)
-    ss2 = wn.synsets(word2)
-    scores = []
-    for s1, s2 in product(ss1, ss2):
-        if s1.pos() != s2.pos():
-            continue
-        sc = s1.wup_similarity(s2)
-        if sc != None:
-            scores.append(sc)
-
-    return max(scores) if scores else 0
 
 
 def qualifies_pos(word, pos):
@@ -37,13 +27,13 @@ def qualifies_pos(word, pos):
 
     for example, if 'horse' is given as word and 'vas' is given as pos,
     since horse is neither a verb nor an adjective nor a satellite adjective,
-    the function will return false.
+    the function will return False.
 
     param:
         word - string
         pos - string containing single-letter part of speech bits ex> vas, vn
     """
-    return len(set(syn.pos() for syn in wn.synsets(word)).intersection(set(pos)))
+    return len(set(syn.pos() for syn in wn.synsets(word)).intersection(set(pos))) > 0
 
 
 def intensified_pairs(text):
@@ -54,8 +44,9 @@ def intensified_pairs(text):
     before or after a word
 
     params:
-        text - nltk.text.Text object
+        text - nltk.text.Text object or a subscriptable value containing strings as elements
     """
+    # this list contains 'adverbs of intensity' that can come before or after a word
     aod_both = [
         "extremely",
         "completely",
@@ -67,6 +58,7 @@ def intensified_pairs(text):
         "highly",
     ]
 
+    # this list contains 'adverbs of intensity' that comes before a word
     aod_pre = ["quite", "very", "too", "really"]
 
     # key: value will be stored like
@@ -74,12 +66,16 @@ def intensified_pairs(text):
     pair_map = {}
     for idx, word in enumerate(text):
         if word in aod_both:
+            # if the word that comes before is a verb (or has at least one entry that is a verb)
+            # notice that when a word precedes the modifier, it can only be a verb
             if qualifies_pos(text[idx - 1], "v"):
                 pair_map[text[idx - 1]] = {
                     "pair": f"{text[idx - 1]} {word}",
                     "intmod": word,
                 }
 
+            # if at least one of the entry is a verb or an adj or a satellite adj
+            # in this case the modified word can be one of verb, adj & satellite adj
             if qualifies_pos(text[idx + 1], "vas"):
                 pair_map[text[idx + 1]] = {
                     "pair": f"{word} {text[idx + 1]}",
@@ -87,6 +83,8 @@ def intensified_pairs(text):
                 }
 
         if word in aod_pre:
+            # if at least one of the entry is a verb or an adj or a satellite adj
+            # notice that adverbs in aod_pre modify adj's & satellite adj's, and not verbs
             if qualifies_pos(text[idx + 1], "as"):
                 pair_map[text[idx + 1]] = {
                     "pair": f"{word} {text[idx + 1]}",
@@ -101,12 +99,17 @@ def syn_pairs(text):
     find and return all synonymous (word, word + intensity modifying word)
     pairs from text
 
-    params: nltk.text.Text object
+    params: nltk.text.Text object or a subscriptable value containing strings as elements
     """
     pair_map = intensified_pairs(text)
+
+    # construct a set that has only the modified words in the expression
     meaning_set = set(meaning for meaning in pair_map)
+
+    # construct a dictionary with synonym : word key value relationship
     syn_map = {syn: word for word in meaning_set for syn in find_synonyms(word)}
 
+    # if there is a common word between the dictionary and text, include it in the set as pairs with the expression
     return set(
         (word, pair_map[syn_map[word]]["pair"])
         for word in text
@@ -115,8 +118,9 @@ def syn_pairs(text):
 
 
 if __name__ == "__main__":
+    # retrieve pairs
     pairs = list(syn_pairs(sample))
+
+    # print the first 50 in a formatted manner
     print("\n".join([f"{t[0]:20}{t[1]}" for t in pairs[:50]]))
-    # with open("out", "w") as f:
-    # f.write("\n".join([f"{t[0]:20}{t[1]}" for t in pairs]))
     print(len(pairs))
