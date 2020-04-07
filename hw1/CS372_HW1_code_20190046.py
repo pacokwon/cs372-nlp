@@ -1,5 +1,5 @@
 from nltk.corpus import wordnet as wn
-from nltk.book import text2 as sample
+from nltk.book import text1 as sample
 from itertools import product
 
 
@@ -67,20 +67,14 @@ def intensified_pairs(text):
         "highly",
     ]
 
-    aod_pre = [
-        "quite",
-        "very",
-        "too",
-        "really",
-        "very",
-    ]
+    aod_pre = ["quite", "very", "too", "really"]
 
     # key: value will be stored like
     # 'extol': { 'pair': 'praise highly', 'intmod': 'highly' }
     pair_map = {}
     for idx, word in enumerate(text):
         if word in aod_both:
-            if qualifies_pos(text[idx - 1], "vas"):
+            if qualifies_pos(text[idx - 1], "v"):
                 pair_map[text[idx - 1]] = {
                     "pair": f"{text[idx - 1]} {word}",
                     "intmod": word,
@@ -93,7 +87,7 @@ def intensified_pairs(text):
                 }
 
         if word in aod_pre:
-            if qualifies_pos(text[idx + 1], "vas"):
+            if qualifies_pos(text[idx + 1], "as"):
                 pair_map[text[idx + 1]] = {
                     "pair": f"{word} {text[idx + 1]}",
                     "intmod": word,
@@ -121,9 +115,8 @@ def syn_pairs(text):
 
 
 if __name__ == "__main__":
-    pairs = syn_pairs(sample)
-    with open("out", "w") as f:
-        f.write("\n".join(sorted([f"{t[0]:20}{t[1]}" for t in pairs])))
-
+    pairs = list(syn_pairs(sample))
+    print("\n".join([f"{t[0]:20}{t[1]}" for t in pairs[:50]]))
+    # with open("out", "w") as f:
+    # f.write("\n".join([f"{t[0]:20}{t[1]}" for t in pairs]))
     print(len(pairs))
-
