@@ -1,4 +1,5 @@
 from nltk.corpus import brown, reuters, inaugural
+from nltk.corpus import PlaintextCorpusReader
 from nltk import ConditionalFreqDist
 
 if __name__ == "__main__":
@@ -13,12 +14,16 @@ if __name__ == "__main__":
 
     # cfd.tabulate(conditions=genres, samples=modals)
 
-    cfd = ConditionalFreqDist(
-        (target, fileid[:4])
-        for fileid in inaugural.fileids()
-        for word in inaugural.words(fileid)
-        for target in ["citizen", "america"]
-        if word.lower().startswith(target)
-    )
+    # cfd = ConditionalFreqDist(
+    #     (target, fileid[:4])
+    #     for fileid in inaugural.fileids()
+    #     for word in inaugural.words(fileid)
+    #     for target in ["citizen", "america"]
+    #     if word.lower().startswith(target)
+    # )
 
-    cfd.plot()
+    # cfd.plot()
+
+    corpus_root = "/Users/pacokwon/course/nlp"
+    wordlists = PlaintextCorpusReader(corpus_root, ".*")
+    print(wordlists.words("in"))
