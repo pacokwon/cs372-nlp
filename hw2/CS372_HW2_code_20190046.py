@@ -196,15 +196,20 @@ def main():
     # grade each pairs
     score_pairs = generate_scores(cfd, 9)
 
+    # filter bigrams that have increased in intensity
     filtered = {
         key: score_pairs[key] for key in score_pairs if score_pairs[key]["increased"]
     }
 
+    # sort filtered bigrams by score in descending order
     sorted_pairs = [
         k
         for k, v in sorted(filtered.items(), key=lambda x: x[1]["score"], reverse=True)
     ]
+
     pprint(sorted_pairs[:100])
+
+    # write result to csv
     write_to_csv("result.csv", sorted_pairs)
 
 
