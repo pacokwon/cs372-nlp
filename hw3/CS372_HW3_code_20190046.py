@@ -62,57 +62,6 @@ class CorpusType:
     REDDIT = "reddit"
 
 
-def parse_synset_name(synset):
-    *word, pos, num = synset.name().split(".")
-    return {"pos": pos, "word": ".".join(word), "id": num}
-
-
-def extract_pos(synsets):
-    return {parse_synset_name(synset)["pos"] for synset in synsets}
-
-
-def exact_synsets(word):
-    return [
-        synset
-        for synset in wn.synsets(word)
-        if parse_synset_name(synset)["word"] == word
-    ]
-
-
-def test(het_dict):
-    with open("heteronyms.json") as f:
-        heteronyms = json.load(f)
-
-    cnt = 0
-    for heteronym in heteronyms:
-        if heteronym in het_dict:
-            cnt += 1
-        print(f"{heteronym}: {heteronym in het_dict}")
-
-    return cnt
-
-
-def improvements(before, after):
-    with open("heteronyms.json") as f:
-        heteronyms = json.load(f)
-
-    cnt = 0
-    for heteronym in heteronyms:
-        if heteronym in before and heteronym not in after:
-            cnt += 1
-            print(heteronym)
-
-    return cnt
-
-
-def max_score(sents):
-    return max(sent[2] for sent in sents)
-
-
-def limit(sents, num):
-    return [sent for sent in sents if sent[2] >= num]
-
-
 def heteronym_candidates():
     """
     Collect and return the first possible candidates of heteronyms
@@ -176,7 +125,7 @@ def parse_wiktionary(word):
     """
     Wiktionary parser. Returns a list of IPA symbols for the specified word
 
-    Contains very specific, messy html parsing code, because Wiktionary
+    Contains very specific, messy html parsing code because Wiktionary
     entries are very unstructured and not general; probably written by hand
     and not auto generated from generic structured data
 
@@ -185,8 +134,11 @@ def parse_wiktionary(word):
     :returns: a list of IPA symbols for the specified word
     :rtype: list of strings
     """
-    filename = f"./html/{word}.html"
+    path = "./html"
+    if not os.path.exists(path):
+        os.mkdir(path)
 
+    filename = f"{path}/{word}.html"
     # construct soup
     if os.path.exists(filename):
         with open(filename) as fp:
