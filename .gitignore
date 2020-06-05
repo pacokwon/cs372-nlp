@@ -196,3 +196,5 @@ tags
 
 **/*.doc
 hw3/html
+hw3/crawled
+hw3/corpora
