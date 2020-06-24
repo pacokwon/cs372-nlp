@@ -46,10 +46,28 @@ class Queue:
 
 
 def get_word_index(text, word, offset):
+    """
+    Get the "index" of `word` in a given `text` according to `offset`
+
+    the "index" indicates how many occurrences of the same word there are before that word
+
+    e.g. index of word "Hello"
+    Hello world Hello
+    ^ 0         ^ 1
+
+    :param text: the whole text to find words from
+    :type text: str
+    :param word: the word to find the index of
+    :type word: str
+    :param offset: index of the first letter of word in the `text`
+    :type offset: int
+    :returns: "index" of the given word
+    :rtype: int
+    """
     indices = [
         m.start() for m in re.finditer(rf"(?<![A-Za-z]){word}(?![A-Za-z])", text)
     ]
-    return (word, indices.index(offset))
+    return indices.index(offset)
 
 
 def get_word_path(trees, word, word_index):
@@ -427,11 +445,11 @@ data = parse_data("./gap-test.tsv")
 
 for idx, datum in enumerate(data):
     print(f"Idx: {idx}")
-    word, word_index = get_word_index(
+    word_index = get_word_index(
         datum["Text"], datum["Pronoun"], datum["Pronoun-offset"]
     )
     chunked = chunked_sentences(datum["Text"], cp)
-    path = get_word_path(chunked, word, word_index)
+    path = get_word_path(chunked, datum["Pronoun"], word_index)
 
     if not path:
         print("No Path!")
