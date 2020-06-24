@@ -8,8 +8,6 @@ import re
 import requests
 from urllib.parse import urlparse
 
-DEBUG = False
-
 
 class Queue:
     """
@@ -302,12 +300,6 @@ def hobbs(sents, pronoun_path):
     sent_idx = pronoun_path[0]
     sent = sents[sent_idx]
     path = pronoun_path[1:]  # the rest expresses the path within the sentence tree
-    if DEBUG:
-        print("Sentence: ")
-        print(" ".join(list(map(lambda x: x[0], sent.leaves()))))
-        print("Tree: ")
-        print(sent)
-        print("Path: ", path)
 
     # 1. Begin at the NP node immediately dominating the pronoun
     np_dominating = path[:-1]
@@ -319,17 +311,10 @@ def hobbs(sents, pronoun_path):
         X_to_dom.append(X[-1])
         X = X[:-1]
     X_to_dom = tuple(reversed(X_to_dom))  # contains path to the dominating NP
-    if DEBUG:
-        print("=============== Step 2 ===============")
-        print("X: ", X)
-        print("X_TO_DOM: ", X_to_dom)
-        print("======================================")
 
     # 3. Traverse all branches below node X to the left of path p in a left-to-right, breadth-first fashion.
     #    Propose as an antecedent any NP node that is encountered which has an NP or S node between it and X.
     np_encountered_raw = collect_noun_phrase_bfs(sent[X])
-    if DEBUG:
-        print(np_encountered_raw)
     np_encountered = [
         (*X, *np_path) for np_path in np_encountered_raw if np_path[0] < X_to_dom[0]
     ]
@@ -341,21 +326,12 @@ def hobbs(sents, pronoun_path):
             return (sent_idx, *np)
 
     while True:
-        if DEBUG:
-            print("Loop")
         # 4. If node X is the highest S node in the sentence, traverse the surface parse trees of previous sentences
         #    in the text in order of recency, the most recent first; each tree is traversed in a left-to-right, breadth-first manner,
         #    and when an NP node is encountered, it is proposed as an antecedent.
         #    If X is not the highest S node in the sentence, continue to step 5.
         if X == ():
             proposed_antecedents = prev_sents_antecedents(sents[:sent_idx])
-            if DEBUG:
-                print("=============== Step 4 ===============")
-                print(sent_idx)
-                print(sents[:sent_idx])
-                print("Proposed: ")
-                print(proposed_antecedents)
-                print("======================================\n")
             if proposed_antecedents:
                 return proposed_antecedents[0]
             else:
@@ -369,18 +345,7 @@ def hobbs(sents, pronoun_path):
             X = X[:-1]
         new_to_old = tuple(reversed(new_to_old))
 
-        if DEBUG:
-            print("=============== Step 5 ===============")
-            print("New X: ")
-            print(X)
-            print("New to Old: ")
-            print((*X, *new_to_old))
-            print("======================================\n")
-
         # 6. If X is an NP node and if the path p to X did not pass through the Nominal node that X immediately dominates, propose X as the antecedent.
-        if DEBUG:
-            print("=============== Step 6 ===============")
-            print("======================================\n")
 
         if sent[X].label() == "NP" and not is_nominal(sent[X][new_to_old[0]].label()):
             return (sent_idx, *X)
@@ -393,11 +358,6 @@ def hobbs(sents, pronoun_path):
             for np_path in np_encountered_raw
             if np_path[0] < new_to_old[0]
         ]
-        if DEBUG:
-            print("=============== Step 7 ===============")
-            print("NP Encountered: ")
-            print(np_encountered)
-            print("======================================\n")
         if np_encountered:
             return (sent_idx, *np_encountered[0])
 
@@ -427,14 +387,6 @@ def hobbs(sents, pronoun_path):
                 for np_path in np_encountered_raw
                 if np_path[0] > new_to_old[0]
             ]
-
-            if DEBUG:
-                print("=============== Step 8 ===============")
-                print("NP Raw: ")
-                print(np_encountered_raw)
-                print("NP Encountered: ")
-                print(np_encountered)
-                print("======================================\n")
 
             if np_encountered:
                 return (sent_idx, *np_encountered[0])
@@ -496,13 +448,11 @@ def snippet_guess(datum, parser):
     path = get_word_path(chunked, datum["Pronoun"], word_index)
 
     if not path:
-        print("Snippet Guess: No Path!")
         return [datum["ID"], False, False]
 
     result = hobbs(chunked, path)
 
     if result == None:
-        print("Snippet Guess: Result is None!")
         return [datum["ID"], False, False]
 
     snippet_guess = subtree(chunked, result)
@@ -603,7 +553,6 @@ def get_related_text(text, url, pronoun, word_index):
             fp.write(html_content)
         soup = BeautifulSoup(html_content, features="lxml")
 
-    # print(soup)
     paragraphs = [
         re.sub(r"\[\d+\]", "", p.text) for p in soup.select(".mw-parser-output p")
     ]
@@ -662,13 +611,11 @@ def page_guess(datum, parser):
     path = get_word_path(chunked, datum["Pronoun"], new_word_index)
 
     if not path:
-        print("Page Guess: No Path!")
         return [datum["ID"], False, False]
 
     result = hobbs(chunked, path)
 
     if result == None:
-        print("Page Guess: Result is None!")
         return [datum["ID"], False, False]
 
     page_guess = subtree(chunked, result)
