@@ -138,6 +138,14 @@ def parse_data(filename):
 
 
 def chunked_sentences(sentences, parser):
+    """
+    POS tag and parse sentences with the given parser
+
+    :param sentences: given sentences in a single str object
+    :type sentences: str
+    :param parser: nltk.RegexpParser object with custom grammar
+    :type parser: nltk.RegexpParser
+    """
     pos_tagged_sentences = [
         pos_tag(word_tokenize(sent)) for sent in sent_tokenize(sentences)
     ]
