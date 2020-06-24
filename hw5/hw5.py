@@ -677,7 +677,7 @@ def page_guess(datum, parser):
 
 grammar = r"""
     NP: {<PRP\$?>}
-        {<DT|PRP\$>?<JJ.*>*<NN.*>+<POS>?}
+        {<NN.*>+}
     PP: {<IN><NP>}
     VP: {<VB.*><NP>}
     S: {<NP><VP>}
