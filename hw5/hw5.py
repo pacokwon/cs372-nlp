@@ -470,6 +470,39 @@ def save_as_tsv(filename, data):
             writer.writerow(row)
 
 
+def snippet_guess(datum, parser):
+    """
+    Predict and return snippet-context guess results
+
+    Since this is snippet-context guessing, we can only look at the text from
+    the test data. Apply hobbs algorithm for pronoun resolution to given
+    text and pronoun.
+
+    :param datum: single row of test data parsed in a dictionary
+    :type datum: dict
+    :param parser: nltk.RegexpParser object with custom grammar
+    :type parser: nltk.RegexpParser
+    :returns: list that contains values of required fields (id, A-coref, B-coref)
+    :rtype: list
+    """
+    word_index = get_word_index(
+        datum["Text"], datum["Pronoun"], datum["Pronoun-offset"]
+    )
+    chunked = chunked_sentences(datum["Text"], parser)
+    path = get_word_path(chunked, datum["Pronoun"], word_index)
+
+    if not path:
+        print("Snippet Guess: No Path!")
+        return [datum["ID"], False, False]
+
+    result = hobbs(chunked, path)
+
+    if result == None:
+        print("Snippet Guess: Result is None!")
+        return [datum["ID"], False, False]
+
+    snippet_guess = subtree(chunked, result)
+    return [datum["ID"], snippet_guess == datum["A"], snippet_guess == datum["B"]]
 grammar = r"""
     NP: {<PRP\$?>}
         {<DT|PRP\$>?<JJ.*>*<NN.*>+<POS>?}
@@ -480,35 +513,14 @@ grammar = r"""
 
 cp = nltk.RegexpParser(grammar)
 data = parse_data("./gap-test.tsv")
-guesses = []
+
+snippet_guesses = []
 
 for idx, datum in enumerate(data):
-    guess_row = [datum["ID"], False, False]
-    guesses.append(guess_row)
     print(f"Idx: {idx}")
-    word_index = get_word_index(
-        datum["Text"], datum["Pronoun"], datum["Pronoun-offset"]
-    )
-    chunked = chunked_sentences(datum["Text"], cp)
-    path = get_word_path(chunked, datum["Pronoun"], word_index)
 
-    if not path:
-        print("No Path!")
-        continue
+    snippet_guess_row = snippet_guess(datum, cp)
+    snippet_guesses.append(snippet_guess_row)
 
-    result = hobbs(chunked, path)
 
-    if result == None:
-        print("Result is None!")
-        continue
-
-    answer = None
-    if datum["A-coref"] == "TRUE":
-        answer = datum["A"]
-    elif datum["B-coref"] == "TRUE":
-        answer = datum["B"]
-
-    guess = subtree(chunked, result)
-    guess_row[1] = guess == datum["A"]
-    guess_row[2] = guess == datum["B"]
-save_as_tsv("snippet_output.tsv", guesses)
+save_as_tsv("snippet_output.tsv", snippet_guesses)
