@@ -177,45 +177,6 @@ def tag_data(text_list, parser):
     return [chunked_sentences(sents, parser) for sents in text_list]
 
 
-def pronoun_locations_single(sent_tree, pronouns):
-    """
-    Return list of paths to pronouns if there are any in the `sent_tree`
-    any word in the `pronouns` variable will be considered as a pronoun.
-
-    :param pronouns: list of pronouns to look for
-    :type pronouns: list[str]
-    :param sent_tree: list of chunked sentences
-    :type sent_tree: list[nltk.Tree]
-    :returns:
-        list of tuples, where the first element is the pronoun itslef,
-        and the second element is a tuple containing the path to the pronoun
-    :rtype: list[(str, tuple)]
-    """
-
-    paths = []
-
-    def dfs(tree, path):
-        for idx, child in enumerate(tree):
-            if type(child) == nltk.Tree:
-                dfs(child, path + [idx])
-            elif type(child) == tuple and (
-                child[0] in pronouns or child[1].startswith("PRP")
-            ):
-                paths.append((child[0], tuple(path + [idx])))
-
-    dfs(sent_tree, [])
-
-    return paths
-
-
-def pronoun_locations(trees, pronouns):
-    paths = []
-    for idx, tree in enumerate(trees):
-        locations = pronoun_locations_single(tree, pronouns)
-        paths += [(loc[0], (idx, *loc[1])) for loc in locations]
-    return paths
-
-
 def validate_np(pronoun, encountered, proposed_np):
     """
     If there is an NP in the middle of a proposed_np and pronoun return True
