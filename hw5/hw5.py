@@ -1,3 +1,4 @@
+import csv
 import itertools
 import nltk
 from nltk import sent_tokenize, word_tokenize, pos_tag
@@ -485,6 +486,21 @@ def subtree(trees, path):
         return " ".join(map(lambda x: x[0], stree.leaves()))
 
 
+def save_as_tsv(filename, data):
+    """
+    Save the given data to a tsv file
+
+    :param filename: name of file to be saved to
+    :type filename: str
+    :param data: list of rows to be saved to the file
+    :type data: list[list]
+    """
+    with open(filename, "w") as file:
+        writer = csv.writer(file, delimiter="\t", quotechar='"')
+        for row in data:
+            writer.writerow(row)
+
+
 grammar = r"""
     NP: {<PRP\$?>}
         {<DT|PRP\$>?<JJ.*>*<NN.*>+<POS>?}
@@ -495,8 +511,11 @@ grammar = r"""
 
 cp = nltk.RegexpParser(grammar)
 data = parse_data("./gap-test.tsv")
+guesses = []
 
 for idx, datum in enumerate(data):
+    guess_row = [datum["ID"], False, False]
+    guesses.append(guess_row)
     print(f"Idx: {idx}")
     word_index = get_word_index(
         datum["Text"], datum["Pronoun"], datum["Pronoun-offset"]
@@ -509,4 +528,18 @@ for idx, datum in enumerate(data):
         continue
 
     result = hobbs(chunked, path)
-    print(subtree(chunked, path))
+
+    if result == None:
+        print("Result is None!")
+        continue
+
+    answer = None
+    if datum["A-coref"] == "TRUE":
+        answer = datum["A"]
+    elif datum["B-coref"] == "TRUE":
+        answer = datum["B"]
+
+    guess = subtree(chunked, result)
+    guess_row[1] = guess == datum["A"]
+    guess_row[2] = guess == datum["B"]
+save_as_tsv("snippet_output.tsv", guesses)
