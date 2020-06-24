@@ -49,7 +49,7 @@ def get_word_index(text, word, offset):
     """
     Get the "index" of `word` in a given `text` according to `offset`
 
-    the "index" indicates how many occurrences of the same word there are before that word
+    the "index" indicates the # of occurrences of the same word before the specified word
 
     e.g. index of word "Hello"
     Hello world Hello
@@ -71,11 +71,26 @@ def get_word_index(text, word, offset):
 
 
 def get_word_path(trees, word, word_index):
+    """
+    Return the path to a word, whose position is specified by `word_index`, in the tree
+
+    `word_index` describes the same thing as described by "index" in the function get_word_index
+
+    :param trees: list of trees, each of which are parsed sentences
+    :type trees: list[nltk.Tree]
+    :param word: word to find the path of from the tree
+    :type word: str
+    :param word_index: # of occurrences of the same word before the specified word
+    :type word_index: int
+    :returns: path to `word` in the tree
+    :rtype: tuple[int]
+    """
     count = 0
     word_path = []
 
     tree = nltk.Tree("root", trees)
 
+    # helper function dfs
     def dfs(tree, path):
         nonlocal word_path, count
 
@@ -192,10 +207,19 @@ def pronoun_locations(trees, pronouns):
     return paths
 
 
-def validate_np(tree, X, pronoun, encountered, proposed_np):
+def validate_np(pronoun, encountered, proposed_np):
     """
-
     If there is an NP in the middle of a proposed_np and pronoun return True
+    otherwise, return False
+
+    :param pronoun: path to the pronoun that one desires to resolve
+    :type pronoun: tuple[int]
+    :param encountered: list of paths to encountered noun phrases
+    :type encountered: list[tuple[int]]
+    :param proposed_np: noun phrase to see if there is an NP in the middle between it and the prnoun
+    :type proposed_np: tuple[int]
+    :returns: whether or not there is an NP in the middle of a proposed_np and pronoun
+    :rtype: bool
     """
     for np in encountered:
         if np != pronoun and np != proposed_np and proposed_np < np:
@@ -207,6 +231,11 @@ def collect_noun_phrase_bfs(tree):
     """
     Collect noun phrase in a left-to-right, breadth-first fashion, then
     return the collected noun phrases
+
+    :param tree: tree to be scanned
+    :type tree: nltk.Tree
+    :returns: list of paths to collected noun phrases
+    :rtype: list[tuple[int]]
     """
     queue = Queue()
 
@@ -234,8 +263,12 @@ def prev_sents_antecedents(trees):
     """
     Collect and return proposed antecedents from previous sentences
     the antecedents are sorted by priority in descending order.
-    """
 
+    :param trees: trees of previous sentences
+    :type trees: list[nltk.Tree]
+    :returns: list of paths to proposed antecedents
+    :rtype: list[tuple[int]]
+    """
     antecedents_list = []
     for idx, tree in enumerate(trees):
         nps = collect_noun_phrase_bfs(tree)
@@ -246,6 +279,15 @@ def prev_sents_antecedents(trees):
 
 
 def is_nominal(label):
+    """
+    A function to tell if a UPenn POS label is a nominal group or not
+
+    :param label: UPenn POS label
+    :type label: str
+    :returns: True if label is nominal group. False otherwise
+    :rtype: bool
+
+    """
     return label.startswith("NN")
 
 
@@ -321,7 +363,7 @@ def hobbs(sents, pronoun_path):
     for np in np_encountered:
         # np contains path to the NP phrase
         # asking if np is valid
-        if validate_np(sent, X, path, np_encountered, np):
+        if validate_np(path, np_encountered, np):
             return (sent_idx, *np)
 
     while True:
@@ -425,6 +467,17 @@ def hobbs(sents, pronoun_path):
 
 
 def subtree(trees, path):
+    """
+    Print the contents of a subtree, specified the `path` parameter
+
+    :param trees: list of trees, each of which are parsed sentences
+    :type trees: list[nltk.Tree]
+    :param path: path to subtree
+    :type path: tuple[int]
+    :returns: leaves of subtree
+    :rtype: str
+    """
+
     stree = trees[path[0]][path[1:]]
     if type(stree) == tuple:
         return stree[0]
