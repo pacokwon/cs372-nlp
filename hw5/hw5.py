@@ -1,8 +1,12 @@
+from bs4 import BeautifulSoup
 import csv
 import itertools
 import nltk
 from nltk import sent_tokenize, word_tokenize, pos_tag
+import os.path
 import re
+import requests
+from urllib.parse import urlparse
 
 DEBUG = False
 
@@ -503,6 +507,174 @@ def snippet_guess(datum, parser):
 
     snippet_guess = subtree(chunked, result)
     return [datum["ID"], snippet_guess == datum["A"], snippet_guess == datum["B"]]
+
+
+def process(sent):
+    """
+    Preprocess a sentence so that characters are correctly interpreted
+
+    :param sent: sentence to run the preprocess on
+    :type sent: str
+    :returns: preprocessed sentence
+    :rtype: str
+    """
+    return sent.replace("\n", "").replace("``", "“").replace("''", "”")
+
+
+def find_from_paragraphs(paragraphs, sentence):
+    """
+    Return the index of paragraph that contain a given sentence
+
+    :param paragraphs: list of paragraphs
+    :type paragraphs: list[str]
+    :param sentence: sentence to look for
+    :type sentence: str
+    :returns: the index of paragraph that contains `sentence`
+    :rtype: int
+    """
+    idx = 0
+    while idx < len(paragraphs):
+        if sentence[: (len(sentence) // 2)] in paragraphs[idx]:
+            return idx
+        idx += 1
+    return -1
+
+
+def count_word(text, word):
+    """
+    Count the actual occurrences of a word in a given text
+
+    Using the count function in str also counts occurrences that just
+    happen to be embedded in a completely different word
+
+    :param text: the text to search `word` from
+    :type text: str
+    :param word: the word to search in text
+    :type word: str
+    :returns: the occurrences of `word` in text
+    :rtype: int
+    """
+    return sum(1 for _ in re.finditer(rf"(?<![A-Za-z]){word}(?![A-Za-z])", text))
+
+
+def get_related_text(text, url, pronoun, word_index):
+    """
+    Given a text(which originally is a portion of a Wikipedia page),
+    extract surrounding sentences, which we call "context", and return it
+
+    :param text: given text from the test dataset
+    :type text: str
+    :param url: url to the wikipedia page that `text` came from
+    :type url: str
+    :param pronoun: the target pronoun to resolve
+    :type pronoun: str
+    :param word_index: the "index" of `pronoun`. refer to get_word_index
+    :type word_index: int
+    :returns: two-element tuple, (context, word_index)
+              where the first element is a list containing the sentences in the new context,
+              and the second element is the new "index" of the given pronoun in the context
+    :rtype: tuple(list, int)
+    """
+    url = urlparse(url)
+    topic = url.path.split("/")[-1]
+
+    sents = sent_tokenize(text)
+
+    sent_idx = -1
+    count = 0
+    while count <= word_index:
+        sent_idx += 1
+        count += count_word(sents[sent_idx], pronoun)
+
+    sent_with_pronoun = process(sents[sent_idx])
+
+    path = "./html"
+    if not os.path.exists(path):
+        os.mkdir(path)
+
+    filename = f"{path}/{topic}.html"
+    # construct soup
+    if os.path.exists(filename):
+        with open(filename) as fp:
+            soup = BeautifulSoup(fp, features="lxml")
+    else:
+        html_content = process(requests.get(url.geturl()).text)
+        with open(filename, "w") as fp:
+            fp.write(html_content)
+        soup = BeautifulSoup(html_content, features="lxml")
+
+    # print(soup)
+    paragraphs = [
+        re.sub(r"\[\d+\]", "", p.text) for p in soup.select(".mw-parser-output p")
+    ]
+    pg_idx = find_from_paragraphs(paragraphs, sent_with_pronoun)
+
+    if pg_idx == -1:
+        return (text, word_index)
+
+    paragraph = sent_tokenize(paragraphs[pg_idx])
+
+    idx = 0
+    while idx < len(paragraph):
+        if sent_with_pronoun[: (len(sent_with_pronoun) // 2)] in paragraph[idx]:
+            break
+        idx += 1
+    if idx == len(paragraph):
+        return (text, word_index)
+
+    new_context = []
+    new_word_index = word_index - (count - count_word(sents[sent_idx], pronoun))
+
+    for i in range(idx):
+        new_context.append(paragraph[i])
+        new_word_index += count_word(paragraph[i], pronoun)
+
+    new_context.append(sents[sent_idx])
+
+    return " ".join(new_context), new_word_index
+
+
+def page_guess(datum, parser):
+    """
+    Predict and return page-context guess results
+
+    Since page-context allows us to look at the Wikipedia page,
+    we extract context from the page and make predictions based on
+    that text, using hobb's algorithm for pronoun resolution.
+    The context is the only different factor from the snippet_guess function's logic
+
+    :param datum: single row of test data parsed in a dictionary
+    :type datum: dict
+    :param parser: nltk.RegexpParser object with custom grammar
+    :type parser: nltk.RegexpParser
+    :returns: list that contains values of required fields (id, A-coref, B-coref)
+    :rtype: list
+    """
+    word_index = get_word_index(
+        datum["Text"], datum["Pronoun"], datum["Pronoun-offset"],
+    )
+
+    context, new_word_index = get_related_text(
+        datum["Text"], datum["URL"], datum["Pronoun"], word_index
+    )
+
+    chunked = chunked_sentences(context, parser)
+    path = get_word_path(chunked, datum["Pronoun"], new_word_index)
+
+    if not path:
+        print("Page Guess: No Path!")
+        return [datum["ID"], False, False]
+
+    result = hobbs(chunked, path)
+
+    if result == None:
+        print("Page Guess: Result is None!")
+        return [datum["ID"], False, False]
+
+    page_guess = subtree(chunked, result)
+    return [datum["ID"], page_guess == datum["A"], page_guess == datum["B"]]
+
+
 grammar = r"""
     NP: {<PRP\$?>}
         {<DT|PRP\$>?<JJ.*>*<NN.*>+<POS>?}
@@ -515,6 +687,7 @@ cp = nltk.RegexpParser(grammar)
 data = parse_data("./gap-test.tsv")
 
 snippet_guesses = []
+page_guesses = []
 
 for idx, datum in enumerate(data):
     print(f"Idx: {idx}")
@@ -522,5 +695,8 @@ for idx, datum in enumerate(data):
     snippet_guess_row = snippet_guess(datum, cp)
     snippet_guesses.append(snippet_guess_row)
 
+    page_guess_row = page_guess(datum, cp)
+    page_guesses.append(page_guess_row)
 
 save_as_tsv("snippet_output.tsv", snippet_guesses)
+save_as_tsv("page_output.tsv", page_guesses)
