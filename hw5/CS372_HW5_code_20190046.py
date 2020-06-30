@@ -1,3 +1,10 @@
+"""
+To run this file, simply execute:
+
+python CS372_HW5_code_20190046.py
+
+without any additional arguments
+"""
 from bs4 import BeautifulSoup
 import csv
 import itertools
@@ -622,28 +629,29 @@ def page_guess(datum, parser):
     return [datum["ID"], page_guess == datum["A"], page_guess == datum["B"]]
 
 
-grammar = r"""
-    NP: {<PRP\$?>}
-        {<NN.*>+}
-    PP: {<IN><NP>}
-    VP: {<VB.*><NP>}
-    S: {<NP><VP>}
-"""
+if __name__ == "__main__":
+    grammar = r"""
+        NP: {<PRP\$?>}
+            {<NN.*>+}
+        PP: {<IN><NP>}
+        VP: {<VB.*><NP>}
+        S: {<NP><VP>}
+    """
 
-cp = nltk.RegexpParser(grammar)
-data = parse_data("./gap-test.tsv")
+    cp = nltk.RegexpParser(grammar)
+    data = parse_data("./gap-test.tsv")
 
-snippet_guesses = []
-page_guesses = []
+    snippet_guesses = []
+    page_guesses = []
 
-for idx, datum in enumerate(data):
-    print(f"Idx: {idx}")
+    for idx, datum in enumerate(data):
+        print(f"Idx: {idx}")
 
-    snippet_guess_row = snippet_guess(datum, cp)
-    snippet_guesses.append(snippet_guess_row)
+        snippet_guess_row = snippet_guess(datum, cp)
+        snippet_guesses.append(snippet_guess_row)
 
-    page_guess_row = page_guess(datum, cp)
-    page_guesses.append(page_guess_row)
+        page_guess_row = page_guess(datum, cp)
+        page_guesses.append(page_guess_row)
 
-save_as_tsv("snippet_output.tsv", snippet_guesses)
-save_as_tsv("page_output.tsv", page_guesses)
+    save_as_tsv("CS372_HW5_snippet_output_20190046.tsv", snippet_guesses)
+    save_as_tsv("CS372_HW5_page_output_20190046.tsv", page_guesses)
